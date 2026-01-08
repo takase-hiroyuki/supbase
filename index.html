@@ -2,42 +2,44 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>kizuna 接続テスト 02</title>
+    <title>kizuna リアルタイムテスト</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <h1>kizuna Database Test 02</h1>
-    <div id="output">読み込み中...</div>
+    <h1>kizuna Realtime Test</h1>
+    <div id="status" style="color: green;">リアルタイム監視中...</div>
+    <pre id="output">読み込み中...</pre>
 
     <script>
-        alert("check 02");
-        // ライブラリ名と被らないように、変数を 'sbClient' に変更
         const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp';
 
-        // 初期化
         const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function getData() {
-            // 'test_log' テーブルからデータを取得
-            const { data, error } = await sbClient
-                .from('test_log')
-                .select('*');
-
-            const outputDiv = document.getElementById('output');
-
+        // データを取得して表示する関数
+        async function fetchDisplay() {
+            const { data, error } = await sbClient.from('test_log').select('*');
             if (error) {
-                outputDiv.innerText = 'エラー: ' + error.message;
-            } else if (data && data.length > 0) {
-                // 成功：データを表示
-                outputDiv.innerText = JSON.stringify(data, null, 2);
+                document.getElementById('output').innerText = 'エラー: ' + error.message;
             } else {
-                // データが空の場合
-                outputDiv.innerText = '接続成功：データはまだありません。';
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
             }
         }
 
-        getData();
+        // リアルタイム受信の設定
+        sbClient
+            .channel('any') // 任意のチャンネル名
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'test_log' }, 
+                (payload) => {
+                    alert('変化を検知しました！' + payload);
+                    fetchDisplay(); // 変化があったら再読み込みして表示を更新
+                }
+            )
+            .subscribe();
+
+        // 初回読み込み
+        fetchDisplay();
     </script>
 </body>
 </html>
