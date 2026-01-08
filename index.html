@@ -6,10 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <h1>kizuna Realtime Test</h1>
-    <div id="status" style="color: green;">リアルタイム監視中...</div>
-    <pre id="output">読み込み中...</pre>
-
+    <h1>check 01</h1
     <script>
         const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp';
@@ -32,7 +29,6 @@
             .on('postgres_changes', 
                 { event: '*', schema: 'public', table: 'test_log' }, 
                 (payload) => {
-                    alert('変化を検知しました！' + payload);
                     fetchDisplay(); // 変化があったら再読み込みして表示を更新
                 }
             )
