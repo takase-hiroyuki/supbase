@@ -2,24 +2,25 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>kizuna 接続テスト</title>
+    <title>kizuna 接続テスト 02</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <h1>kizuna Database Test 01</h1>
+    <h1>kizuna Database Test 02</h1>
     <div id="output">読み込み中...</div>
 
     <script>
-        alert("チェック 01");
-        const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co'; // あなたのURL
-        const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp'; // あなたのanonキー
+        alert("check 02");
+        // ライブラリ名と被らないように、変数を 'sbClient' に変更
+        const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp';
 
-        // Supabase の初期化
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 初期化
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function getData() {
             // 'test_log' テーブルからデータを取得
-            const { data, error } = await supabase
+            const { data, error } = await sbClient
                 .from('test_log')
                 .select('*');
 
@@ -27,9 +28,12 @@
 
             if (error) {
                 outputDiv.innerText = 'エラー: ' + error.message;
-            } else {
-                // 取得したデータを画面に表示
+            } else if (data && data.length > 0) {
+                // 成功：データを表示
                 outputDiv.innerText = JSON.stringify(data, null, 2);
+            } else {
+                // データが空の場合
+                outputDiv.innerText = '接続成功：データはまだありません。';
             }
         }
 
