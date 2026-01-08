@@ -2,83 +2,101 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>kizuna 掲示板テスト</title>
+    <title>kizuna 掲示板（表形式）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
-        .form-area { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        input { padding: 8px; width: 250px; }
-        button { padding: 8px 15px; cursor: pointer; background: #3ecf8e; border: none; color: white; border-radius: 4px; }
+        body { font-family: sans-serif; margin: 20px; color: #333; }
+        .form-area { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        input { padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; cursor: pointer; background: #3ecf8e; border: none; color: white; border-radius: 4px; font-weight: bold; }
         button:hover { background: #34b27b; }
-        #output { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
+        
+        /* テーブルのスタイル */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #eee; }
+        tr:nth-child(even) { background-color: #fcfcfc; }
+        tr:hover { background-color: #f1f1f1; }
     </style>
 </head>
 <body>
-    <h1>掲示板 01</h1>
+    <h1>kizuna リアルタイム掲示板</h1>
 
     <div class="form-area">
-        <input type="text" id="nameInput" placeholder="なまえを入力してください">
+        <input type="text" id="nameInput" placeholder="お名前を入力">
         <button onclick="saveData()">送信する</button>
     </div>
 
-    <h3>現在のデータ（リアルタイム更新）</h3>
-    <div id="output">読み込み中...</div>
+    <h3>受信データ一覧</h3>
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名前</th>
+                <th>作成日時</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            </tbody>
+    </table>
 
     <script>
         const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp';
-
         const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // データを取得して表示する関数
+        // データを表形式で表示する関数
         async function fetchDisplay() {
             const { data, error } = await sbClient
                 .from('test_log')
                 .select('*')
-                .order('id', { ascending: false }); // 新しい順に並べる
+                .order('id', { ascending: false });
 
-            const outputDiv = document.getElementById('output');
+            const tbody = document.getElementById('table-body');
+            
             if (error) {
-                outputDiv.innerText = 'エラー: ' + error.message;
-            } else {
-                outputDiv.innerText = data.length > 0 
-                    ? JSON.stringify(data, null, 2) 
-                    : "データはありません。";
-            }
-        }
-
-        // データを保存する関数
-        async function saveData() {
-            const inputElement = document.getElementById('nameInput');
-            const newName = inputElement.value;
-
-            if (!newName) {
-                alert("名前を入力してください！");
+                tbody.innerHTML = `<tr><td colspan="3">エラー: ${error.message}</td></tr>`;
                 return;
             }
 
-            // Supabase にデータを挿入（Insert）
+            // テーブルの中身を一度空にする
+            tbody.innerHTML = "";
+
+            // データを1行ずつ作成して追加
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.name}</td>
+                    <td>${new Date(row.created_at).toLocaleString('ja-JP')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function saveData() {
+            const input = document.getElementById('nameInput');
+            if (!input.value) return;
+
             const { error } = await sbClient
                 .from('test_log')
-                .insert([{ name: newName }]); 
+                .insert([{ name: input.value }]);
 
             if (error) {
                 alert("保存エラー: " + error.message);
             } else {
-                inputElement.value = ""; // 入力欄を空にする
-                // リアルタイム設定が済んでいれば、自動的に fetchDisplay が動きます
+                input.value = "";
             }
         }
 
-        // リアルタイム監視の設定
+        // リアルタイム監視
         sbClient
-            .channel('any')
+            .channel('table-db')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'test_log' }, () => {
                 fetchDisplay();
             })
             .subscribe();
 
-        // 初回表示
         fetchDisplay();
     </script>
 </body>
