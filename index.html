@@ -2,11 +2,28 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>kizuna リアルタイムテスト</title>
+    <title>kizuna 掲示板テスト</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+        .form-area { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        input { padding: 8px; width: 250px; }
+        button { padding: 8px 15px; cursor: pointer; background: #3ecf8e; border: none; color: white; border-radius: 4px; }
+        button:hover { background: #34b27b; }
+        #output { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
+    </style>
 </head>
 <body>
-    <h1>check 01</h1>
+    <h1>掲示板 01</h1>
+
+    <div class="form-area">
+        <input type="text" id="nameInput" placeholder="なまえを入力してください">
+        <button onclick="saveData()">送信する</button>
+    </div>
+
+    <h3>現在のデータ（リアルタイム更新）</h3>
+    <div id="output">読み込み中...</div>
+
     <script>
         const SUPABASE_URL = 'https://jnordvkkajlengzfaxzj.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jpR2JZ7Mue2EPEqELM71iw_AcwermIp';
@@ -15,26 +32,53 @@
 
         // データを取得して表示する関数
         async function fetchDisplay() {
-            const { data, error } = await sbClient.from('test_log').select('*');
+            const { data, error } = await sbClient
+                .from('test_log')
+                .select('*')
+                .order('id', { ascending: false }); // 新しい順に並べる
+
+            const outputDiv = document.getElementById('output');
             if (error) {
-                document.getElementById('output').innerText = 'エラー: ' + error.message;
+                outputDiv.innerText = 'エラー: ' + error.message;
             } else {
-                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                outputDiv.innerText = data.length > 0 
+                    ? JSON.stringify(data, null, 2) 
+                    : "データはありません。";
             }
         }
 
-        // リアルタイム受信の設定
+        // データを保存する関数
+        async function saveData() {
+            const inputElement = document.getElementById('nameInput');
+            const newName = inputElement.value;
+
+            if (!newName) {
+                alert("名前を入力してください！");
+                return;
+            }
+
+            // Supabase にデータを挿入（Insert）
+            const { error } = await sbClient
+                .from('test_log')
+                .insert([{ name: newName }]); 
+
+            if (error) {
+                alert("保存エラー: " + error.message);
+            } else {
+                inputElement.value = ""; // 入力欄を空にする
+                // リアルタイム設定が済んでいれば、自動的に fetchDisplay が動きます
+            }
+        }
+
+        // リアルタイム監視の設定
         sbClient
-            .channel('any') // 任意のチャンネル名
-            .on('postgres_changes', 
-                { event: '*', schema: 'public', table: 'test_log' }, 
-                (payload) => {
-                    fetchDisplay(); // 変化があったら再読み込みして表示を更新
-                }
-            )
+            .channel('any')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'test_log' }, () => {
+                fetchDisplay();
+            })
             .subscribe();
 
-        // 初回読み込み
+        // 初回表示
         fetchDisplay();
     </script>
 </body>
