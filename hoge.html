@@ -2,75 +2,210 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>JS SVG Stamp</title>
+    <title>SVG Interactive Sugoroku</title>
     <style>
         body {
+            font-family: sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-family: sans-serif;
-            background-color: #f0f0f0;
+            background-color: #f4f4f4;
         }
-        /* SVGエリアの枠線 */
         svg {
             background-color: white;
             border: 2px solid #333;
-            cursor: crosshair;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            user-select: none; /* 文字選択されないようにする */
         }
-        /* 追加された円（circle）にアニメーションをつけることも簡単 */
-        circle {
-            transition: r 0.2s; /* 半径の変化をアニメーション */
-        }
-        circle:hover {
-            opacity: 0.8;
-            stroke: #333;
+        
+        /* --- プレイヤー（コマ） --- */
+        .player-piece {
+            transition: cx 0.3s ease, cy 0.3s ease;
+            fill: #ff4757;
+            stroke: #fff;
             stroke-width: 2px;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+            pointer-events: none; /* コマがマスのクリックを邪魔しないように */
         }
+
+        /* --- マスの基本デザイン --- */
+        .step-rect {
+            fill: #eccc68;
+            stroke: #333;
+            stroke-width: 1px;
+            transition: all 0.2s; /* ホバー時のアニメーション */
+            cursor: pointer;      /* 指のカーソル */
+        }
+        
+        /* マスの種類ごとの色 */
+        .step-event { fill: #70a1ff; }
+        .step-trap { fill: #ff6b81; }
+
+        /* --- ★ここが追加したホバー演出 --- */
+        .step-rect:hover {
+            stroke: #ff9f43;    /* 枠線をオレンジに */
+            stroke-width: 4px;  /* 枠線を太く */
+            fill-opacity: 0.9;  /* 少しだけ透明感を出す */
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            background-color: #2ed573;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h2>SVGでスタンプ</h2>
-    <p>クリックすると、HTMLの要素として円が追加されます。</p>
-    <svg id="mySvg" width="500" height="400"></svg>
-    <button onclick="clearSvg()" style="margin-top: 10px;">リセット</button>
+    <h2>SVGすごろく（マウスを乗せてみて！）</h2>
+    <div id="msg">スタートです。マスにマウスを乗せると説明が出ます。</div>
+    
+    <svg id="gameBoard" width="600" height="250"></svg>
+    
+    <button id="diceBtn" onclick="turn()">サイコロを振る 🎲</button>
 
     <script>
-        const svg = document.getElementById('mySvg');
-        const svgNS = "http://www.w3.org/2000/svg"; // SVGを作るためのおまじない
+        const svg = document.getElementById('gameBoard');
+        const msgDiv = document.getElementById('msg');
+        const diceBtn = document.getElementById('diceBtn');
+        const svgNS = "http://www.w3.org/2000/svg";
 
-        svg.addEventListener('click', function(event) {
-            // 座標計算（Canvasと同じ）
-            const rect = svg.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
+        // マス目のデータ
+        const steps = [
+            { x: 50,  y: 125, type: 'start', text: 'S' },
+            { x: 110, y: 125 },
+            { x: 170, y: 125, type: 'event', text: '？', effect: 'warp' },
+            { x: 230, y: 125 },
+            { x: 290, y: 125, type: 'trap',  text: '戻', effect: 'back' },
+            { x: 350, y: 125 },
+            { x: 410, y: 125 },
+            { x: 470, y: 125 },
+            { x: 550, y: 125, type: 'goal',  text: 'G' }
+        ];
 
-            createCircle(x, y);
-        });
+        let currentPos = 0;
+        let playerElem = null;
 
-        function createCircle(x, y) {
-            // 1. <circle> というタグを作る
-            // HTMLのタグと少し違う作り方をします（createElementNSが必要）
-            const circle = document.createElementNS(svgNS, "circle");
+        function initGame() {
+            drawBoard();
+            createPlayer();
+        }
 
-            // 2. 属性（設定）を入れる
-            circle.setAttribute("cx", x);  // 中心のX座標
-            circle.setAttribute("cy", y);  // 中心のY座標
-            circle.setAttribute("r", 20);  // 半径
+        async function turn() {
+            if (currentPos >= steps.length - 1) return;
+            diceBtn.disabled = true;
             
-            // 色をランダムに
-            const color = `hsl(${Math.random() * 360}, 70%, 60%)`;
-            circle.setAttribute("fill", color);
+            const dice = Math.floor(Math.random() * 3) + 1;
+            msgDiv.innerText = `出た目: ${dice}！ 進みます...`;
 
-            // 3. SVGの中に「子要素」として追加する
-            svg.appendChild(circle);
+            for (let i = 0; i < dice; i++) {
+                if (currentPos >= steps.length - 1) break;
+                currentPos++;
+                updatePlayerPos();
+                await wait(400);
+            }
+
+            await checkTileEvent();
+
+            if (currentPos === steps.length - 1) {
+                msgDiv.innerText = "ゴール！！おめでとう！🎉";
+            } else {
+                msgDiv.innerText += " あなたの番です。";
+                diceBtn.disabled = false;
+            }
         }
 
-        function clearSvg() {
-            // 中身を空っぽにする
-            svg.innerHTML = '';
+        function drawBoard() {
+            // 背景の線
+            const line = document.createElementNS(svgNS, "line");
+            line.setAttribute("x1", steps[0].x);
+            line.setAttribute("y1", steps[0].y);
+            line.setAttribute("x2", steps[steps.length-1].x);
+            line.setAttribute("y2", steps[steps.length-1].y);
+            line.setAttribute("stroke", "#ccc");
+            line.setAttribute("stroke-width", "5");
+            svg.appendChild(line);
+
+            // マスを描く
+            steps.forEach(step => {
+                const rect = document.createElementNS(svgNS, "rect");
+                rect.setAttribute("x", step.x - 20);
+                rect.setAttribute("y", step.y - 20);
+                rect.setAttribute("width", 40);
+                rect.setAttribute("height", 40);
+                rect.setAttribute("rx", 5);
+
+                // クラスを割り当て（これでCSSのhoverが効くようになります）
+                let className = "step-rect";
+                if (step.type === 'event') className += " step-event";
+                if (step.type === 'trap') className += " step-trap";
+                rect.setAttribute("class", className);
+
+                // ★ここにホバー時の説明文（ツールチップ）を追加
+                const title = document.createElementNS(svgNS, "title");
+                if (step.type === 'trap') title.textContent = "【危険】止まると戻されます";
+                else if (step.type === 'event') title.textContent = "【チャンス】ワープ！";
+                else if (step.type === 'start') title.textContent = "ここからスタート";
+                else if (step.type === 'goal') title.textContent = "目指せゴール";
+                else title.textContent = "普通のマス";
+                rect.appendChild(title);
+
+                svg.appendChild(rect);
+
+                // マスの上の文字
+                if (step.text) {
+                    const text = document.createElementNS(svgNS, "text");
+                    text.setAttribute("x", step.x);
+                    text.setAttribute("y", step.y + 5);
+                    text.setAttribute("text-anchor", "middle");
+                    text.setAttribute("font-weight", "bold");
+                    text.style.pointerEvents = "none"; // 文字が邪魔しないように
+                    text.textContent = step.text;
+                    svg.appendChild(text);
+                }
+            });
         }
+
+        function createPlayer() {
+            playerElem = document.createElementNS(svgNS, "circle");
+            playerElem.setAttribute("r", 15);
+            playerElem.setAttribute("class", "player-piece");
+            updatePlayerPos();
+            svg.appendChild(playerElem);
+        }
+
+        function updatePlayerPos() {
+            const posData = steps[currentPos];
+            playerElem.setAttribute("cx", posData.x);
+            playerElem.setAttribute("cy", posData.y);
+        }
+
+        async function checkTileEvent() {
+            const tile = steps[currentPos];
+            if (tile.effect === 'back') {
+                msgDiv.innerText = "罠だ！1マス戻される！";
+                await wait(800);
+                currentPos--;
+                updatePlayerPos();
+            } else if (tile.effect === 'warp') {
+                msgDiv.innerText = "ワープ！1マス進む！";
+                await wait(800);
+                currentPos++;
+                updatePlayerPos();
+            }
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        initGame();
     </script>
 </body>
 </html>
