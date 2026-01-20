@@ -1,1 +1,72 @@
-<h1>hoge hoge</h1>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>JS Canvas Stamp</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+        }
+        /* キャンバスに枠線をつけて分かりやすくする */
+        canvas {
+            background-color: white;
+            border: 2px solid #333;
+            cursor: crosshair; /* マウスカーソルを十字にする */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        p { color: #555; }
+    </style>
+</head>
+<body>
+
+    <h2>クリックしてスタンプ！</h2>
+    <p>キャンバス内をクリックすると図形が描かれます。</p>
+    <canvas id="myCanvas" width="500" height="400"></canvas>
+    <button onclick="clearCanvas()" style="margin-top: 10px; padding: 5px 10px;">リセット</button>
+
+    <script>
+        // 1. キャンバス要素と描画コンテキスト（筆のようなもの）を取得
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 2. クリックイベントを設定
+        canvas.addEventListener('click', function(event) {
+            // キャンバスの位置情報を取得（画面上のどこにあるか）
+            const rect = canvas.getBoundingClientRect();
+
+            // 3. クリック位置の座標（X, Y）を計算
+            // (クリックした画面座標) - (キャンバスの左端/上端の位置)
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // 4. スタンプ（図形）を描画する関数を呼び出す
+            drawStamp(x, y);
+        });
+
+        // スタンプを描画する関数
+        function drawStamp(x, y) {
+            // 色をランダムに決める（'hsl(色相, 彩度, 輝度)'）
+            const randomColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+
+            ctx.fillStyle = randomColor; // 塗りつぶしの色を設定
+            
+            ctx.beginPath(); // パス（描画の開始）を宣言
+            
+            // 円を描く: arc(x, y, 半径, 開始角度, 終了角度)
+            // ここでは半径20pxの円を描きます
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            
+            ctx.fill(); // 塗りつぶす
+        }
+
+        // キャンバスをクリアする関数
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
