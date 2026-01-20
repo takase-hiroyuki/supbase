@@ -2,70 +2,74 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>JS Canvas Stamp</title>
+    <title>JS SVG Stamp</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f0f0f0;
             font-family: sans-serif;
+            background-color: #f0f0f0;
         }
-        /* キャンバスに枠線をつけて分かりやすくする */
-        canvas {
+        /* SVGエリアの枠線 */
+        svg {
             background-color: white;
             border: 2px solid #333;
-            cursor: crosshair; /* マウスカーソルを十字にする */
+            cursor: crosshair;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        p { color: #555; }
+        /* 追加された円（circle）にアニメーションをつけることも簡単 */
+        circle {
+            transition: r 0.2s; /* 半径の変化をアニメーション */
+        }
+        circle:hover {
+            opacity: 0.8;
+            stroke: #333;
+            stroke-width: 2px;
+        }
     </style>
 </head>
 <body>
 
-    <h2>クリックしてスタンプ！</h2>
-    <p>キャンバス内をクリックすると図形が描かれます。</p>
-    <canvas id="myCanvas" width="500" height="400"></canvas>
-    <button onclick="clearCanvas()" style="margin-top: 10px; padding: 5px 10px;">リセット</button>
+    <h2>SVGでスタンプ</h2>
+    <p>クリックすると、HTMLの要素として円が追加されます。</p>
+    <svg id="mySvg" width="500" height="400"></svg>
+    <button onclick="clearSvg()" style="margin-top: 10px;">リセット</button>
 
     <script>
-        // 1. キャンバス要素と描画コンテキスト（筆のようなもの）を取得
-        const canvas = document.getElementById('myCanvas');
-        const ctx = canvas.getContext('2d');
+        const svg = document.getElementById('mySvg');
+        const svgNS = "http://www.w3.org/2000/svg"; // SVGを作るためのおまじない
 
-        // 2. クリックイベントを設定
-        canvas.addEventListener('click', function(event) {
-            // キャンバスの位置情報を取得（画面上のどこにあるか）
-            const rect = canvas.getBoundingClientRect();
-
-            // 3. クリック位置の座標（X, Y）を計算
-            // (クリックした画面座標) - (キャンバスの左端/上端の位置)
+        svg.addEventListener('click', function(event) {
+            // 座標計算（Canvasと同じ）
+            const rect = svg.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
 
-            // 4. スタンプ（図形）を描画する関数を呼び出す
-            drawStamp(x, y);
+            createCircle(x, y);
         });
 
-        // スタンプを描画する関数
-        function drawStamp(x, y) {
-            // 色をランダムに決める（'hsl(色相, 彩度, 輝度)'）
-            const randomColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+        function createCircle(x, y) {
+            // 1. <circle> というタグを作る
+            // HTMLのタグと少し違う作り方をします（createElementNSが必要）
+            const circle = document.createElementNS(svgNS, "circle");
 
-            ctx.fillStyle = randomColor; // 塗りつぶしの色を設定
+            // 2. 属性（設定）を入れる
+            circle.setAttribute("cx", x);  // 中心のX座標
+            circle.setAttribute("cy", y);  // 中心のY座標
+            circle.setAttribute("r", 20);  // 半径
             
-            ctx.beginPath(); // パス（描画の開始）を宣言
-            
-            // 円を描く: arc(x, y, 半径, 開始角度, 終了角度)
-            // ここでは半径20pxの円を描きます
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            
-            ctx.fill(); // 塗りつぶす
+            // 色をランダムに
+            const color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+            circle.setAttribute("fill", color);
+
+            // 3. SVGの中に「子要素」として追加する
+            svg.appendChild(circle);
         }
 
-        // キャンバスをクリアする関数
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function clearSvg() {
+            // 中身を空っぽにする
+            svg.innerHTML = '';
         }
     </script>
 </body>
